@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neural-compression-from-scratch"
+version = "0.1.0"
+description = "Language modelling is compression: a 32-bit arithmetic coder, adaptive count models, and a byte-level transformer with KV-cache coding, benchmarked against gzip, bz2 and lzma with real round trips."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Kishor Hange" }]
+dependencies = ["torch>=2.4", "numpy>=1.26"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E741", "E731"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/ncomp/bench.py" = ["E501"]
