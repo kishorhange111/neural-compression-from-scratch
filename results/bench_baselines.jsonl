@@ -1,0 +1,7 @@
+{"name": "gzip -9", "bytes": 145413, "bpb": 1.9616308814577366, "encode_s": 0.16109369997866452}
+{"name": "bz2 -9", "bytes": 123739, "bpb": 1.6692472037623793, "encode_s": 0.1139044999727048}
+{"name": "lzma -9e", "bytes": 123816, "bpb": 1.6702859387989457, "encode_s": 0.4671434999909252}
+{"name": "order-0 counts, adaptive", "bytes": 347690, "bpb": 4.690360842387134, "ideal_bpb": 4.690297144217674, "encode_s": 116.70186869997997, "decode_s": 101.34284170001047, "roundtrip": true}
+{"name": "order-2 counts, adaptive", "bytes": 186376, "bpb": 2.514224430845709, "ideal_bpb": 2.514169015289582, "encode_s": 141.46990440000081, "decode_s": 128.55852429999504, "roundtrip": true}
+{"name": "order-4 counts, adaptive", "bytes": 135014, "bpb": 1.821347691259618, "ideal_bpb": 1.821288972399591, "encode_s": 102.81465860002209, "decode_s": 85.19316219998291, "roundtrip": true}
+{"name": "order-2 counts, primed on train", "bytes": 189139, "bpb": 2.551497481573414, "ideal_bpb": 2.5514417525620545, "encode_s": 54.428662099991925, "decode_s": 49.77989730000263, "roundtrip": true, "prime_s": 41.04811370000243}
