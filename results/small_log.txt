@@ -1,0 +1,10 @@
+params 693,760
+[3.8m] step 250 train 3.293 val 3.305 bits/byte
+[7.1m] step 500 train 2.763 val 2.887 bits/byte
+[10.9m] step 750 train 2.459 val 2.538 bits/byte
+[14.4m] step 1000 train 2.046 val 2.266 bits/byte
+[17.8m] step 1250 train 2.041 val 2.093 bits/byte
+[21.4m] step 1500 train 1.939 val 1.985 bits/byte
+[24.6m] step 1750 train 1.505 val 1.920 bits/byte
+[27.9m] step 2000 train 1.920 val 1.875 bits/byte
+DONE

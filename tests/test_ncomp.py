@@ -145,6 +145,16 @@ def test_neural_roundtrip_with_ragged_last_chunk(tiny):
         assert decompress(blob, NeuralModel(tiny), ctx=24, group=group) == data
 
 
+def test_sliding_window_roundtrip_past_the_context(tiny):
+    data = text(24 * 9 + 7)  # streams of 56 bytes, more than twice the context of 24
+    for keep in (0.25, 0.5):
+        model = lambda k=keep: NeuralModel(tiny, slide=True, keep=k)
+        blob = compress(data, model(), ctx=56, group=4)
+        assert decompress(blob, model(), ctx=56, group=4) == data
+    with pytest.raises(ValueError, match="slide"):
+        compress(data, NeuralModel(tiny), ctx=56, group=4)
+
+
 def test_ideal_code_length_is_the_cross_entropy(tiny):
     data = text(24 * 10)
     _, ideal = compress(data, NeuralModel(tiny), ctx=24, group=10, return_bits=True)

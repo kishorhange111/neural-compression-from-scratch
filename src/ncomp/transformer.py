@@ -127,8 +127,12 @@ class NeuralModel:
     full forward over the whole prefix at every step: the same function, computed
     differently. It is quadratic, and it exists only to demonstrate the mismatch."""
 
-    def __init__(self, model, path="step"):
-        self.m, self.path = model.eval(), path
+    def __init__(self, model, path="step", slide=False, keep=0.5):
+        """``slide``: streams may be longer than the context. When the cache is full it
+        is rebuilt from [BOS] + the last ``keep``·ctx bytes, with the same cached steps on
+        both sides, so prediction never restarts cold. That costs 1 / (1 − keep) times
+        the compute: 2× at keep = ½."""
+        self.m, self.path, self.slide, self.keep = model.eval(), path, slide, keep
 
     def start(self, B):
         self.t = 0
@@ -137,8 +141,22 @@ class NeuralModel:
         self._p = None
 
     @torch.no_grad()
+    def _rebuild(self):
+        keep = int(self.m.ctx * self.keep)
+        bos = torch.full((self.seq.shape[0], 1), BOS, dtype=torch.long)
+        self.seq = torch.cat([bos, self.seq[:, -(keep - 1) :]], 1)
+        self.caches = self.m.new_caches(self.seq.shape[0])
+        for t in range(keep - 1):  # replay all but the last token; probs() steps that one
+            self.m.step(self.seq[:, t], t, self.caches)
+        self.t = keep - 1
+
+    @torch.no_grad()
     def probs(self):
         if self._p is None:
+            if self.t >= self.m.ctx:
+                if not self.slide:
+                    raise ValueError("stream longer than the context; use slide=True")
+                self._rebuild()
             if self.path == "step":
                 logits = self.m.step(self.seq[:, -1], self.t, self.caches)
             else:

@@ -93,7 +93,8 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--models", nargs="*", default=["results/small"])
     ap.add_argument("--out", default="results")
-    ap.add_argument("--skip-counts", action="store_true")
+    ap.add_argument("--skip-baselines", action="store_true")
+    ap.add_argument("--streams", type=int, default=64, help="parallel streams when sliding")
     a = ap.parse_args(argv)
     sys.stdout.reconfigure(encoding="utf-8")
     torch.set_num_threads(4)
@@ -102,24 +103,33 @@ def main(argv=None):
     rows = []
     print(f"test: {n:,} bytes in {len(names)} files; train: {len(tr):,} bytes", flush=True)
 
+    os.makedirs(a.out, exist_ok=True)
+
     def add(r):
         rows.append(r)
         print(json.dumps(r), flush=True)
 
+    def flush(name):
+        with open(os.path.join(a.out, f"bench_{name}.jsonl"), "w", encoding="utf-8") as f:
+            for r in rows:
+                f.write(json.dumps(r) + "\n")
+        rows.clear()
+
     # 1. general-purpose compressors, at their strongest settings
-    for name, f in [("gzip -9", lambda d: gzip.compress(d, 9, mtime=0)),
-                    ("bz2 -9", lambda d: bz2.compress(d, 9)),
-                    ("lzma -9e", lambda d: lzma.compress(d, preset=9 | lzma.PRESET_EXTREME))]:  # fmt: skip
+    for name in [] if a.skip_baselines else ["gzip -9", "bz2 -9", "lzma -9e"]:
+        f = {"gzip -9": lambda d: gzip.compress(d, 9, mtime=0), "bz2 -9": lambda d: bz2.compress(d, 9),
+             "lzma -9e": lambda d: lzma.compress(d, preset=9 | lzma.PRESET_EXTREME)}[name]  # fmt: skip
         blob, t = timed(f, te)
         add({"name": name, "bytes": len(blob), "bpb": 8 * len(blob) / n, "encode_s": t})
 
     # 2. adaptive count models (one stream, unbounded history), then a primed one
-    if not a.skip_counts:
+    if not a.skip_baselines:
         for k in (0, 2, 4):
             add(run_coder(f"order-{k} counts, adaptive", te, lambda k=k: OrderK(k)))
         primed, tp = timed(OrderK, 2, tr)
         add(run_coder("order-2 counts, primed on train", te, lambda: primed,
                       extra={"prime_s": tp}))  # fmt: skip
+        flush("baselines")
 
     # 3. the transformers
     for path in a.models:
@@ -140,6 +150,12 @@ def main(argv=None):
                       extra={"params": params, "model_bytes_lzma_fp16": model_bytes, "group": group,
                              "train_steps": steps, "xent_bpb_full_chunks": xent, "ctx": ctx})  # fmt: skip
         add(r)
+        # sliding windows over a few long streams instead of independent chunks
+        S = math.ceil(n / a.streams)
+        for keep in (0.25, 0.5):
+            add(run_coder(f"ByteGPT {cfg['d']}×{cfg['layers']}, sliding, keep {keep}", te,
+                          lambda m=model, k=keep: NeuralModel(m, slide=True, keep=k), ctx=S,
+                          group=a.streams, extra={"streams": a.streams, "keep": keep}))  # fmt: skip
         pos = position_bpb(model, chunks)
         add({"name": "position", "model": path, "bpb_by_position": pos.round(4).tolist()})
         d, flips = path_mismatch(model, chunks[:64])
@@ -154,11 +170,7 @@ def main(argv=None):
              "full_vs_step_table_flips": flips, "batch_vs_alone_max_dp": bd,
              "batch_vs_alone_table_flips": bflips, "crosspath_bytes": len(seg),
              "crosspath_wrong_fraction": float(wrong.mean()), "crosspath_first_error": first})  # fmt: skip
-
-    os.makedirs(a.out, exist_ok=True)
-    with open(os.path.join(a.out, "bench.jsonl"), "w", encoding="utf-8") as f:
-        for r in rows:
-            f.write(json.dumps(r) + "\n")
+        flush(os.path.basename(os.path.normpath(path)))
 
 
 if __name__ == "__main__":
