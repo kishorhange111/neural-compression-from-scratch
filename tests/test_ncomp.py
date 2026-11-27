@@ -1,5 +1,4 @@
 import math
-import os
 
 import numpy as np
 import pytest
@@ -204,4 +203,5 @@ def test_split_is_by_file_and_deterministic(tmp_path):
     assert (tr, te, names) == (tr2, te2, names2)
     assert 0 < len(names) < 60 and b"skip" not in tr + te
     assert len(tr) + len(te) == sum(len(f"x = {i}\n") for i in range(60))
-    assert all(os.sep not in n for n in names)
+    # names use "/" on every OS, so the split is the same on Windows and Linux
+    assert all("/" in n and "\\" not in n for n in names)
